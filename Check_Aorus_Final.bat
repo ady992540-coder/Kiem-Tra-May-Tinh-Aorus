@@ -1,54 +1,45 @@
 @echo off
-setlocal enabledelayedexpansion
-
+:: Set language to English/Vietnamese without accents (Cai dat song ngu khong dau)
 echo ======================================================
 echo    ALL-IN-ONE SYSTEM CHECK (KIEM TRA TOAN BO MAY TINH)
 echo ======================================================
-echo Please wait... (Vui long cho trong giay lat...)
+echo Please wait 3 seconds... (Vui long cho 3 giay...)
 
-:: 1. GATHERING DATA (DANG THU THAP DU LIEU)
-wmic cpu get name, NumberOfCores > cpu.txt
-wmic memorychip get capacity > ram.txt[cite: 3]
-wmic diskdrive get model, size > ssd.txt
-powershell "Get-CimInstance -ClassName Win32_VideoController | Select-Object caption" > gpu.txt
-powershell "Get-CimInstance -ClassName Win32_VideoController | Select-Object CurrentRefreshRate" > screen.txt[cite: 5]
-powercfg /batteryreport > nul
-systeminfo | findstr /C:"Original Install Date" > age.txt[cite: 7]
-wmic bios get serialnumber > seri.txt
+:: 1. COLLECTING DATA USING POWERSHELL (DANG LAY TIN BANG POWERSHELL)
+powershell -Command "Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores | Out-File -FilePath 'cpu.txt' -Encoding utf8"
+powershell -Command "Get-CimInstance Win32_VideoController | Select-Object Caption | Out-File -FilePath 'gpu.txt' -Encoding utf8"[cite: 2]
+powershell -Command "Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum | ForEach-Object { '{0:N2} GB' -f ($_.Sum / 1GB) } | Out-File -FilePath 'ram.txt' -Encoding utf8"[cite: 3]
+powershell -Command "Get-CimInstance Win32_DiskDrive | Select-Object Model, @{Name='SizeGB';Expression={$_.Size/1GB}} | Out-File -FilePath 'ssd.txt' -Encoding utf8"
+powershell -Command "Get-CimInstance Win32_VideoController | Select-Object CurrentRefreshRate | Out-File -FilePath 'screen.txt' -Encoding utf8"[cite: 5]
+powershell -Command "Get-CimInstance Win32_Bios | Select-Object SerialNumber | Out-File -FilePath 'seri.txt' -Encoding utf8"[cite: 10]
+powercfg /batteryreport > nul[cite: 6]
 
-:: 2. RUNNING PYTHON ANALYZER (DANG GOI ROBOT PHAN TICH)
+:: 2. PYTHON ANALYZER (ROBOT PHAN TICH PYTHON)
 python -c "import os; 
-def get_txt(f): return open(f, 'r').read().strip() if os.path.exists(f) else 'N/A';
-cpu = get_txt('cpu.txt'); ram = get_txt('ram.txt'); ssd = get_txt('ssd.txt'); gpu = get_txt('gpu.txt');
-screen = get_txt('screen.txt'); age = get_txt('age.txt'); seri = get_txt('seri.txt');
+def read_f(name): return open(name, 'r', encoding='utf-8').read() if os.path.exists(name) else 'N/A';
+c = read_f('cpu.txt'); g = read_f('gpu.txt'); r = read_f('ram.txt'); s = read_f('ssd.txt'); hz = read_f('screen.txt'); sn = read_f('seri.txt');
 
-# ADVERTISING DATA (DU LIEU QUANG CAO)
-target = {'cpu': 'i7-10870H', 'gpu': 'RTX 3060', 'ram': 32, 'ssd': 512};
+print('\n' + '='*50 + '\nDETECTIVE REPORT (BAN BAO CAO THAM TU)\n' + '='*50);
+print(f'1. CPU (Bo nao): {c.splitlines()[-1] if len(c.splitlines())>1 else c}');
+print(f'2. GPU (Hoa si): {g.splitlines()[-1] if len(g.splitlines())>1 else g}');
+print(f'3. RAM (Ban lam viec): {r.strip()}');
+print(f'4. SSD (Kho chua): {s.splitlines()[-1] if len(s.splitlines())>1 else s}');
+print(f'5. SCREEN (Man hinh): {hz.splitlines()[-1] if len(hz.splitlines())>1 else hz} Hz');
+print(f'6. SERIAL (So Seri): {sn.splitlines()[-1] if len(sn.splitlines())>1 else sn}');
 
-# LOGIC COMPARISON (SO SANH)
-print('\n' + '='*50 + '\nFINAL REPORT (BAN BAO CAO CUOI CUNG)\n' + '='*50);
-print(f'1. CPU (BO NAO): {cpu}');
-print(f'2. GPU (HOA SI): {gpu}');
-print(f'3. RAM (BAN LAM VIEC): {ram}');
-print(f'4. SSD (KHO CHUA): {ssd}');
-print(f'5. SCREEN (MAN HINH): {screen}');
-print(f'6. AGE (TUOI MAY): {age}');
-print(f'7. SERIAL (SO SERI): {seri}');
+print('\n' + '-'*50 + '\nAD vs REALITY (QUANG CAO VS THUC TE)\n' + '-'*50);
+score = 0;
+if 'i7' in c: print('CPU: MATCH! (GIONG) ✅'); score += 1;
+else: print('CPU: WRONG! (SAI) ❌');
 
-print('\n' + '-'*50 + '\nCOMPARISON (SO SANH VOI QUANG CAO)\n' + '-'*50);
-points = 0;
-if 'i7' in cpu: print('CPU: MATCH! (GIONG QUANG CAO) ✅'); points += 1;
-else: print('CPU: DIFFERENT! (KHAC QUANG CAO) ❌');
+if '3060' in g: print('GPU: MATCH! (GIONG) ✅'); score += 1;
+else: print('GPU: WRONG! (SAI) ❌');
 
-if '3060' in gpu: print('GPU: MATCH! (GIONG QUANG CAO) ✅'); points += 1;
-else: print('GPU: DIFFERENT! (KHAC QUANG CAO) ❌');
-
-# FINAL VERDICT (QUYET DINH CUOI CUNG)
 print('\n' + '='*50);
-if points >= 2: print('VERDICT: BUY NOW! (QUYET DINH: MUA NGAY!)');
-else: print('VERDICT: DO NOT BUY! (QUYET DINH: KHONG NEN MUA!)');
+if score >= 2: print('DECISION: BUY NOW! (QUYET DINH: MUA NGAY!)');
+else: print('DECISION: DO NOT BUY! (QUYET DINH: KHONG MUA!)');
 print('='*50);"
 
 :: 3. CLEAN UP (DON DEP)
-del cpu.txt ram.txt ssd.txt gpu.txt screen.txt age.txt seri.txt
+del cpu.txt gpu.txt ram.txt ssd.txt screen.txt seri.txt battery-report.html > nul
 pause
